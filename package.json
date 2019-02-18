@@ -1,0 +1,17 @@
+{
+  "name": "esmarttokenjs",
+  "version": "1.4.0",
+  "description": "",
+  "main": "esmarttoken.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mikord/esmarttokenjs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Mikord/esmarttokenjs/issues"
+  },
+  "homepage": "https://github.com/Mikord/esmarttokenjs#readme"
+}
