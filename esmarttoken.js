@@ -1,12 +1,12 @@
 /*
-* ESMART Token Web JavaScript class
-*/
+ * ESMART Token Web JavaScript class
+ */
 var esmartTokenWeb = function () {
   'use strict';
-  var isInit = false;
-  var lastSuccessHandler;
+  let isInit = false;
+  let lastSuccessHandler;
 
-  var _init = function (successHandler, errorHandler) {
+  let _init = function (successHandler, errorHandler) {
     if (isInit) {
       errorHandler("Already initializated.");
       return false;
@@ -25,7 +25,7 @@ var esmartTokenWeb = function () {
     lastSuccessHandler = successHandler;
     // register event listener for responses
     window.addEventListener("esmart-token-addon-message-response", function (event) {
-      var data = event.detail;
+      let data = event.detail;
       lastSuccessHandler(data);
     }, false);
 
@@ -34,7 +34,7 @@ var esmartTokenWeb = function () {
     return isInit;
   }
 
-  var _listSlots = function (successHandler, errorHandler) {
+  let _listSlots = function (successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -42,7 +42,7 @@ var esmartTokenWeb = function () {
     return _sendCommand('listslots', {}, successHandler, errorHandler);
   }
 
-  var _listCerts = function (successHandler, errorHandler) {
+  let _listCerts = function (successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -50,7 +50,7 @@ var esmartTokenWeb = function () {
     return _sendCommand('listcerts', {}, successHandler, errorHandler);
   }
 
-  var _listCertsEx = function (andOidFilterArray_, orOidFilterArray_, successHandler, errorHandler) {
+  let _listCertsEx = function (andOidFilterArray_, orOidFilterArray_, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -67,7 +67,7 @@ var esmartTokenWeb = function () {
     }, successHandler, errorHandler);
   }
 
-  var _pkcs7ValidateInParam = function (certid_, data_, errorHandler) {
+  let _pkcs7ValidateInParam = function (certid_, data_, errorHandler) {
     if (certid_ == '') {
       errorHandler("certid can't be empty.");
       return false;
@@ -85,7 +85,7 @@ var esmartTokenWeb = function () {
     return true;
   }
 
-  var _pkcs7Sign = function (certid_, slot_, data_, flag_, successHandler, errorHandler) {
+  let _pkcs7Sign = function (certid_, slot_, data_, flag_, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -102,7 +102,7 @@ var esmartTokenWeb = function () {
     }, successHandler, errorHandler);
   }
 
-  var _pkcs7SignDsig = function (certid_, slot_, data_, dsigurl_, flag_, successHandler, errorHandler) {
+  let _pkcs7SignDsig = function (certid_, slot_, data_, dsigurl_, flag_, successHandler, errorHandler) {
     // check minimum plugin version 1.3.0
     if (esmartTokenWebVersionInfo.major < 1 || esmartTokenWebVersionInfo.minor < 3) {
       errorHandler("You should have plugin version 1.3.0 or higher to use this function.");
@@ -119,10 +119,101 @@ var esmartTokenWeb = function () {
     }
 
     return _sendCommand('pkcs7sign',
-        {certid: certid_, slot: slot_, data: data_, flag: flag_, dsigurl: dsigurl_}, successHandler, errorHandler);
+      {certid: certid_, slot: slot_, data: data_, flag: flag_, dsigurl: dsigurl_}, successHandler, errorHandler);
   }
 
-  var _pkcs7Verify = function (signature_, data_, verifychain_, crls_, slot_, successHandler, errorHandler) {
+  let _pkcs7ItemBulkSign = function (bulkResult, successHandler, errorHandler) {
+    if (bulkResult.result.totalSignatures <= bulkResult.result.successSignatures) {
+      // stop procees
+      _sendCommand('finishBulkOper', {}, function (res) {
+      }, function (res) {
+      });
+      successHandler(JSON.stringify(bulkResult));
+      return true;
+    }
+    else {
+      let data_ = bulkResult.result.signatures[bulkResult.result.successSignatures];
+      return _sendCommand('pkcs7BulkSignItem',
+        {data: data_.data, flag: data_.flag, dsigurl: bulkResult.result.dsigurl},
+        function (res) {
+          let obj = JSON.parse(res);
+          if (obj.resp != 'OK') {
+            successHandler(res);
+            _sendCommand('finishBulkOper', {}, function (res) {
+            }, function (res) {
+            });
+            return;
+          }
+
+          bulkResult.result.signatures[bulkResult.result.successSignatures].result = res;
+          bulkResult.result.successSignatures++;
+
+          if (typeof data_.successHandler != 'undefined') {
+            // invoke callback
+            if (!data_.successHandler(res)) {
+              // callback signal to stop operartion
+              _sendCommand('finishBulkOper', {}, function (res) {
+              }, function (res) {
+              });
+              successHandler(JSON.stringify(bulkResult));
+              return true;
+            }
+          }
+          return _pkcs7ItemBulkSign(bulkResult, successHandler, errorHandler);
+        }
+        , errorHandler);
+    }
+  }
+
+  let _pkcs7BulkSign = function (certid_, slot_, dsigurl_, signParamArray_, successHandler, errorHandler) {
+    // check minimum plugin version 1.7.0
+    if (esmartTokenWebVersionInfo.major < 1 || esmartTokenWebVersionInfo.minor < 7) {
+      errorHandler("You should have plugin version 1.7.0 or higher to use this function.");
+      return false;
+    }
+
+    if (!isInit) {
+      errorHandler("Not initializated.");
+      return false;
+    }
+
+    if (!_pkcs7ValidateInParam(certid_, signParamArray_, errorHandler)) {
+      return false;
+    }
+
+    if (!Array.isArray(signParamArray_) || signParamArray_.length == 0) {
+      errorHandler("There is no data found for signing.");
+    }
+
+    // init bulk operation
+    return _sendCommand('initBulkOper',
+      {certid: certid_, slot: slot_},
+      function (res) {
+        let bulkResult = {
+          resp: 'OK',
+          result: {
+            totalSignatures: signParamArray_.length,
+            successSignatures: 0,
+            signatures: signParamArray_,
+            dsigurl: dsigurl_
+          }
+        };
+
+        let obj = JSON.parse(res);
+        if (obj.resp != 'OK') {
+          successHandler(res);
+          _sendCommand('finishBulkOper', {}, function (res) {
+          }, function (res) {
+          });
+          return;
+        }
+
+        return _pkcs7ItemBulkSign(bulkResult, successHandler, errorHandler);
+      },
+      errorHandler);
+  }
+
+  let _pkcs7Verify = function (signature_, data_, verifychain_, crls_, slot_, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -145,11 +236,11 @@ var esmartTokenWeb = function () {
     }
 
     return _sendCommand('pkcs7verify',
-        {signature: signature_, slot: slot_, data: data_, verifychain: verifychain_, crls: crls_},
-        successHandler, errorHandler);
+      {signature: signature_, slot: slot_, data: data_, verifychain: verifychain_, crls: crls_},
+      successHandler, errorHandler);
   }
 
-  var _pkcs7VerifyEx = function (signature_, data_, flag_, dsigurl_, successHandler, errorHandler) {
+  let _pkcs7VerifyEx = function (signature_, data_, flag_, dsigurl_, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -172,18 +263,18 @@ var esmartTokenWeb = function () {
     }
 
     return _sendCommand('pkcs7verifyex',
-        {signature: signature_, data: data_, flag: flag_, dsigurl: dsigurl_},
-        successHandler, errorHandler);
+      {signature: signature_, data: data_, flag: flag_, dsigurl: dsigurl_},
+      successHandler, errorHandler);
   }
 
-  var _sendCommand = function (cmd_, payload, successHandler, errorHandler) {
+  let _sendCommand = function (cmd_, payload, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
     }
     lastSuccessHandler = successHandler;
 
-    var event = document.createEvent('CustomEvent');
+    let event = document.createEvent('CustomEvent');
     // TODO: deprecated function, need to be reviewed
     event.initCustomEvent("esmart-token-addon-message", true, true, {cmd: cmd_, data: payload});
     document.documentElement.dispatchEvent(event);
@@ -191,7 +282,7 @@ var esmartTokenWeb = function () {
     return true;
   }
 
-  var _changeUserPin = function (slot_, successHandler, errorHandler) {
+  let _changeUserPin = function (slot_, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -206,7 +297,7 @@ var esmartTokenWeb = function () {
     return _sendCommand('changeUserPin', {slot: slot_}, successHandler, errorHandler);
   }
 
-  var _listData = function (isReadPrivateData, successHandler, errorHandler) {
+  let _listData = function (isReadPrivateData, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -221,7 +312,7 @@ var esmartTokenWeb = function () {
     return _sendCommand('listData', {readPrivate: isReadPrivateData}, successHandler, errorHandler);
   }
 
-  var _saveData = function (slot_, dataLabel, dataValue, isPrivateData, successHandler, errorHandler) {
+  let _saveData = function (slot_, dataLabel, dataValue, isPrivateData, successHandler, errorHandler) {
     if (!isInit) {
       errorHandler("Not initializated.");
       return false;
@@ -244,12 +335,12 @@ var esmartTokenWeb = function () {
     }, successHandler, errorHandler);
   }
 
-  var checkVersion = function () {
+  let checkVersion = function () {
     if (navigator.userAgent.indexOf("Firefox") == -1) {
       return false;
     }
-    var match = navigator.userAgent.match(/Firefox\/([0-9]+)\./);
-    var ver = match ? parseInt(match[1]) : 0;
+    let match = navigator.userAgent.match(/Firefox\/([0-9]+)\./);
+    let ver = match ? parseInt(match[1]) : 0;
     if (ver == 0 || ver > 52) {
       return false;
     }
@@ -289,6 +380,9 @@ var esmartTokenWeb = function () {
     },
     pkcs7SignDsig: function (certid, slot, data, dsigurl, flag, successHandler, errorHandler) {
       return _pkcs7SignDsig(certid, slot, data, dsigurl, flag, successHandler, errorHandler);
+    },
+    pkcs7BulkSign: function (certid, slot, dsigurl, signParamArray, successHandler, errorHandler) {
+      return _pkcs7BulkSign(certid, slot, dsigurl, signParamArray, successHandler, errorHandler);
     }
   };
 }();
