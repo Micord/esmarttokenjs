@@ -71,12 +71,12 @@ var esmartTokenWeb = function() {
     if (esmartTokenWebVersionInfo.major > 1) {
       window.addEventListener("message", function(event)
       {
-      	if (event.source == window &&
-      	      event.data &&
-      	      event.data.direction == "esmart-token-addon-message-response")
-      	{
+        if (event.source == window &&
+            event.data &&
+            event.data.direction == "esmart-token-addon-message-response")
+        {
           cbQueue.applyCb(event.data.requestid, event.data.message);
-      	}
+        }
       });
     }
     else {
@@ -111,9 +111,9 @@ var esmartTokenWeb = function() {
     // Version 2.0 and higher use WebExtension API and require to get PIN
     let payload = {};
     if (esmartTokenWebVersionInfo.major > 1) {
-      _requestUserPinForAllSlots(function(slotsUserPin) {
+      _requestAllSlotsId(function(slotsIds) {
         payload = {
-          slotsData: slotsUserPin
+          slotsData: slotsIds
         };
         _sendCommand('listcerts', payload, successHandler, errorHandler);
       }, errorHandler);
@@ -122,6 +122,39 @@ var esmartTokenWeb = function() {
     else {
       return _sendCommand('listcerts', payload, successHandler, errorHandler);
     }
+  }
+
+  let _requestAllSlotsId = function(successHandler, errorHandler) {
+    _listSlots(function(str) {
+      let obj = JSON.parse(str);
+      if (obj.resp != 'OK') {
+        errorHandler(obj.error.message + ' Error code (' + obj.error.code + ')');
+        return;
+      }
+      let res = JSON.parse(obj.result);
+      let slotsIds = [];
+      if (res.length > 0) {
+        return _requestIdForSlot(res, slotsIds, successHandler, errorHandler);
+      }
+      else {
+        return successHandler(slotsInfo);
+      }
+    }, errorHandler);
+
+    return true;
+  }
+
+  let _requestIdForSlot = function(slotsInfo, slotsIds, successHandler, errorHandler) {
+    if (slotsInfo.length <= slotsIds.length) {
+      successHandler(slotsIds);
+      return true;
+    }
+    let i = slotsIds.length;
+    slotsIds[i] = {
+      slotid: slotsInfo[i].slot,
+      validTokenPresent: slotsInfo[i].validTokenPresent
+    };
+    return _requestIdForSlot(slotsInfo, slotsIds, successHandler, errorHandler);
   }
 
   let _requestUserPinForAllSlots = function(successHandler, errorHandler) {
@@ -155,6 +188,7 @@ var esmartTokenWeb = function() {
     if (typeof cb !== 'function') {
       errorHandler("Callback for request User PIN not found");
     }
+    //console.log("_requestUserPinForOneSlots for ", cbname);
 
     _listSlots(function(str) {
       let obj = JSON.parse(str);
@@ -167,6 +201,7 @@ var esmartTokenWeb = function() {
       if (res.length > 0) {
         for (let i = 0; i < res.length; i++) {
           if (res[i].slot == slotid && res[i].validTokenPresent === true) {
+            //console.log("_requestUserPinForSlot for ", i, JSON.stringify(res[i]));
             return _requestUserPinForSlot([res[i]], slotsUserPin, cb, cbname, successHandler, errorHandler);
           }
         }
@@ -186,8 +221,9 @@ var esmartTokenWeb = function() {
       return true;
     }
     let i = slotsUserPin.length;
-    if (slotsInfo[i].validTokenPresent) {
-      if (cbtype === 'changeuserpin') {
+    if (slotsInfo[i].validTokenPresent === true) {
+      if (cbtype == 'changeuserpin') {
+        //console.log("Get change PIN for ", JSON.stringify(slotsInfo[i]));
         cbGetPin(slotsInfo[i].label, function(_pin, _newpin) {
           slotsUserPin[i] = {
             slotid: slotsInfo[i].slot,
@@ -199,6 +235,7 @@ var esmartTokenWeb = function() {
         }, function() { errorHandler('Canceled'); });
       }
       else {
+        //console.log("Get PIN for ", JSON.stringify(slotsInfo[i]));
         cbGetPin(slotsInfo[i].label, function(_pin) {
           slotsUserPin[i] = {
             slotid: slotsInfo[i].slot,
@@ -234,9 +271,9 @@ var esmartTokenWeb = function() {
     // Version 2.0 and higher use WebExtension API and require to get PIN
     let payload = { andOidFilterArray: andOidFilterArray_, orOidFilterArray: orOidFilterArray_};
     if (esmartTokenWebVersionInfo.major > 1) {
-      _requestUserPinForAllSlots(function(slotsUserPin) {
+      _requestAllSlotsId(function(slotsIds) {
         payload = {
-          slotsData: slotsUserPin,
+          slotsData: slotsIds,
           andOidFilterArray: andOidFilterArray_,
           orOidFilterArray: orOidFilterArray_
         };
@@ -330,7 +367,7 @@ var esmartTokenWeb = function() {
     }
     else {
       return _sendCommand('pkcs7sign',
-        { certid: certid_, slot: slot_, data: data_, flag: flag_,  dsigurl: dsigurl_}, successHandler, errorHandler);
+          { certid: certid_, slot: slot_, data: data_, flag: flag_,  dsigurl: dsigurl_}, successHandler, errorHandler);
     }
   }
 
@@ -344,7 +381,7 @@ var esmartTokenWeb = function() {
     else {
       let data_ = bulkResult.result.signatures[bulkResult.result.successSignatures];
       return _sendCommand('pkcs7BulkSignItem',
-        { data: data_.data, flag: data_.flag,  dsigurl: bulkResult.result.dsigurl},
+          { data: data_.data, flag: data_.flag,  dsigurl: bulkResult.result.dsigurl},
           function(res) {
             let obj = JSON.parse(res);
             if (obj.resp != 'OK') {
@@ -367,7 +404,7 @@ var esmartTokenWeb = function() {
             }
             return _pkcs7ItemBulkSign(bulkResult, successHandler, errorHandler);
           }
-        , errorHandler);
+          , errorHandler);
     }
   }
 
@@ -392,9 +429,8 @@ var esmartTokenWeb = function() {
     }
 
     // Version 2.0 and higher use WebExtension API and require to get PIN
-    let payload = {};
     if (esmartTokenWebVersionInfo.major > 1) {
-      _requestUserPinForOneSlots(slot_, 'userpin', function(slotsUserPin) {
+      return _requestUserPinForOneSlots(slot_, 'userpin', function(slotsUserPin) {
         let payload = {
           certid: certid_,
           slot: parseInt(slot_),
@@ -402,38 +438,36 @@ var esmartTokenWeb = function() {
           pin: slotsUserPin[0].pin
         };
         _sendCommand('initBulkOper', payload,
-        function(res) {
-          let bulkResult = {
-            resp: 'OK',
-            result: {
-              totalSignatures: signParamArray_.length,
-              successSignatures: 0,
-              signatures: signParamArray_,
-              dsigurl: dsigurl_
-            }
-          };
+            function(res) {
+              let bulkResult = {
+                resp: 'OK',
+                result: {
+                  totalSignatures: signParamArray_.length,
+                  successSignatures: 0,
+                  signatures: signParamArray_,
+                  dsigurl: dsigurl_
+                }
+              };
 
-          let obj = JSON.parse(res);
-          if (obj.resp != 'OK') {
-            successHandler(res);
-            _sendCommand('finishBulkOper', {}, function(res) {}, function(res) {});
-            return;
-          }
+              let obj = JSON.parse(res);
+              if (obj.resp != 'OK') {
+                successHandler(res);
+                _sendCommand('finishBulkOper', {}, function(res) {}, function(res) {});
+                return;
+              }
 
-          return _pkcs7ItemBulkSign(bulkResult, successHandler, errorHandler);
-        },
-        errorHandler);
+              return _pkcs7ItemBulkSign(bulkResult, successHandler, errorHandler);
+            },
+            errorHandler);
         return true;
       }, errorHandler);
-      return true;
     }
-    else {
-      let payload = {
-        certid: certid_,
-        slot: parseInt(slot_),
-        dsigurl: dsigurl_
-      };
-    }
+
+    let payload = {
+      certid: certid_,
+      slot: parseInt(slot_),
+      dsigurl: dsigurl_
+    };
 
     // init bulk operation
     return _sendCommand('initBulkOper',
@@ -484,8 +518,8 @@ var esmartTokenWeb = function() {
     }
 
     return _sendCommand('pkcs7verify',
-      { signature: signature_, slot: slot_, data: data_, verifychain: verifychain_,  crls: crls_},
-      successHandler, errorHandler);
+        { signature: signature_, slot: parseInt(slot_), data: data_, verifychain: verifychain_,  crls: crls_},
+        successHandler, errorHandler);
   }
 
   let _pkcs7VerifyEx = function(signature_, data_, flag_, dsigurl_, successHandler, errorHandler) {
@@ -511,8 +545,8 @@ var esmartTokenWeb = function() {
     }
 
     return _sendCommand('pkcs7verifyex',
-      { signature: signature_, data: data_, flag: flag_, dsigurl: dsigurl_},
-      successHandler, errorHandler);
+        { signature: signature_, data: data_, flag: flag_, dsigurl: dsigurl_},
+        successHandler, errorHandler);
   }
 
   let _sendCommand = function(cmd_, payload, successHandler, errorHandler) {
@@ -523,10 +557,11 @@ var esmartTokenWeb = function() {
 
     // Version 2.0 and higher use WebExtension API
     if (esmartTokenWebVersionInfo.major > 1) {
+      let requestId = cbQueue.registerCb(successHandler);
       window.postMessage({
         direction: "esmart-token-addon-message",
         message: JSON.stringify({ cmd: cmd_, data: payload }),
-        requestid: cbQueue.registerCb(successHandler)
+        requestid: requestId
       }, "*");
     }
     else {
@@ -554,7 +589,7 @@ var esmartTokenWeb = function() {
 
     // Version 2.0 and higher use WebExtension API and require to get PIN
     if (esmartTokenWebVersionInfo.major > 1) {
-      _requestUserPinForOneSlots(slot_, 'changeuserpin', function(slotsUserPin) {
+      return _requestUserPinForOneSlots(slot_, 'changeuserpin', function(slotsUserPin) {
         let payload = {
           slot: parseInt(slot_),
           pin: slotsUserPin[0].pin,
@@ -562,7 +597,6 @@ var esmartTokenWeb = function() {
         };
         _sendCommand('changeUserPin', payload, successHandler, errorHandler);
       }, errorHandler);
-      return true;
     }
     else {
       return _sendCommand('changeUserPin', { slot: slot_ }, successHandler, errorHandler);
