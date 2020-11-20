@@ -779,3 +779,4 @@ var esmartTokenWeb = function() {
     }
   };
 }();
+module.exports = esmartTokenWeb;
