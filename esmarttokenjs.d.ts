@@ -1,5 +1,6 @@
 declare module 'esmarttokenjs' {
   export interface esmarttokenjs {
+    init(successHandler, errorHandler): any;
 
     listSlots(successHandler, errorHandler): any;
 
