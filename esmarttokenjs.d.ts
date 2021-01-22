@@ -25,5 +25,9 @@ declare module 'esmarttokenjs' {
     pkcs7BulkSign(certid, slot, dsigurl, signParamArray, successHandler, errorHandler):any;
 
     regExternalCallback(handlersArray);
+
+    setupNativeMode(successHandler, errorHandler);
+
+    setupHttpMode(serverName, serverPort, successHandler, errorHandler);
   }
 }
