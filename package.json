@@ -1,6 +1,6 @@
 {
   "name": "esmarttokenjs",
-  "version": "2.2.1-cg",
+  "version": "2.2.1-micord.1",
   "description": "",
   "main": "esmarttoken.js",
   "scripts": {
@@ -8,11 +8,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Mikord/esmarttokenjs.git"
+    "url": "git+https://github.com/Micord/esmarttokenjs.git"
   },
   "bugs": {
-    "url": "https://github.com/Mikord/esmarttokenjs/issues"
+    "url": "https://github.com/Micord/esmarttokenjs/issues"
   },
-  "homepage": "https://github.com/Mikord/esmarttokenjs#readme",
+  "publishConfig": {
+    "registry": "https://repo.micord.ru/repository/npm-private/"
+  },
+  "homepage": "https://github.com/Micord/esmarttokenjs#readme",
   "typings": "./esmarttokenjs.d.ts"
 }
