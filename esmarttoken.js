@@ -435,7 +435,9 @@ var esmartTokenWeb = function() {
           certid: certid_,
           slot: parseInt(slot_),
           dsigurl: dsigurl_,
-          pin: slotsUserPin[0].pin
+          pin: slotsUserPin[0].pin,
+          //allData field was added for Fast Signature Mode
+          allData: signParamArray_
         };
         _sendCommand('initBulkOper', payload,
             function(res) {
@@ -479,7 +481,9 @@ var esmartTokenWeb = function() {
               totalSignatures: signParamArray_.length,
               successSignatures: 0,
               signatures: signParamArray_,
-              dsigurl: dsigurl_
+              dsigurl: dsigurl_,
+              //allData field was added for Fast Signature Mode
+              allData: signParamArray_
             }
           };
 

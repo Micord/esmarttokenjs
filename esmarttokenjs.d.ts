@@ -4,6 +4,8 @@ declare module 'esmarttokenjs' {
 
     listSlots(successHandler, errorHandler): any;
 
+    listCerts(successHandler, errorHandler): any;
+
     pkcs7Sign(certid, slot, data, flag, successHandler, errorHandler): any;
 
     pkcs7SignDsig(certid, slot, data, dsigurl, flag, successHandler, errorHandler): any
@@ -11,8 +13,6 @@ declare module 'esmarttokenjs' {
     pkcs7Verify(signature, data, verifychain, crls, slot, successHandler, errorHandler): any;
 
     pkcs7VerifyEx(signature, data, flag, dsigurl, successHandler, errorHandler): any;
-
-    sendCommand(cmd, payload, successHandler, errorHandler): any;
 
     changeUserPin(slot, successHandler, errorHandler): any;
 
@@ -29,5 +29,7 @@ declare module 'esmarttokenjs' {
     setupNativeMode(successHandler, errorHandler);
 
     setupHttpMode(serverName, serverPort, successHandler, errorHandler);
+
+    getMode(successHandler, errorHandler): any;
   }
 }
