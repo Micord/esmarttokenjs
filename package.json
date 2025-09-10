@@ -1,10 +1,13 @@
 {
   "name": "esmarttokenjs",
-  "version": "2.2.1-micord.2",
+  "version": "2.2.1-micord.3",
   "description": "",
   "main": "esmarttoken.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "publishConfig": {
+    "registry": "https://repo.micord.ru/repository/npm-private/"
   },
   "repository": {
     "type": "git",
